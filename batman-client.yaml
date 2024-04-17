@@ -9,7 +9,6 @@ data:
       labels:
         app: batman-client
     spec:
-      replicas: 1
       strategy:
         type: RollingUpdate
         rollingUpdate:
