@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: k3s
+  name: k3s
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k3s
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: k3s
+      namespace: default
+    spec:
+      affinity: {}
+      containers:
+        - args:
+            - '--disable-agent'
+            - '--token=TOKEN'
+            - '--node-taint=CriticalAddonsOnly=true:NoExecute'
+            - '--https-listen-port=30000' #30000 is only for example, you may use another
+            - '--tls-san=NODE_IP:30000'
+            - '--node-external-ip=NODE_IP'
+            - '--advertise-address=NODE_IP'
+          command:
+            - k3s
+            - server
+          env:
+            - name: K3S_DATASTORE_ENDPOINT
+              value: >-
+                postgres://postgres:DB_PASS_@DB_SERVICE:DB_PORT/DB_NAME?sslmode=disable
+          image: rancher/k3s
+          imagePullPolicy: Always
+          name: container-0
+          ports:
+            - containerPort: 30000
+              name: 30000tcp30000
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 30000
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/lib/rancher/k3s/server/manifests/batman-gateway.yaml
+              name: batman-gateway
+              subPath: batman-gateway.yaml
+            - mountPath: /var/lib/rancher/k3s/server/manifests/batman-client.yaml
+              name: batman-client
+              subPath: batman-client.yaml
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: batman-client
+          name: batman-client
+        - configMap:
+            defaultMode: 420
+            name: batman-gateway
+          name: batman-gateway

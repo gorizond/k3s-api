@@ -1,0 +1,76 @@
+apiVersion: v1
+data:
+  batman-gateway.yaml: |
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: batman-gateway
+      namespace: kube-system
+      labels:
+        app: batman
+    spec:
+      replicas: 1
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 0
+      selector:
+        matchLabels:
+          app: batman-gateway
+      template:
+        metadata:
+          name: batman-gateway
+          labels:
+            app: batman-gateway
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: batman
+                    operator: In
+                    values:
+                    - gateway
+          restartPolicy: Always
+          priorityClassName: "system-node-critical"
+          tolerations:
+            - key: "node.cloudprovider.kubernetes.io/uninitialized"
+              value: "true"
+              effect: "NoSchedule"           
+            - key: "CriticalAddonsOnly"
+              operator: "Exists"
+            - key: "node.kubernetes.io/not-ready"
+              effect: "NoExecute"              
+          containers:
+            - name: batman-gateway
+              image: rinawolfeak/batmangateway
+              imagePullPolicy: Always 
+              securityContext:
+                runAsNonRoot: false
+                readOnlyRootFilesystem: false
+                privileged: true
+                allowPrivilegeEscalation: true
+              env:
+                - name: MESH_NAME
+                  value: mesh-iot
+                - name: BAT_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP 
+              volumeMounts:
+                - mountPath: /etc
+                  name: etc
+          dnsPolicy: ClusterFirst
+          hostNetwork: true   
+          hostPID: true
+          hostIPC: true           
+          volumes:
+            - name: etc
+              hostPath:
+                path: /etc
+kind: ConfigMap
+metadata:
+  name: batman-gateway
+  namespace: default
